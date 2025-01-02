@@ -8,7 +8,7 @@ import os
 # === CONFIGURATION ===
 # CoinGecko and Yahoo Finance APIs
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
-COINS = ["dogecoin", "shiba-inu","pepe-unchained","fartcoin", "kekius-maximus"]  # Add more meme coins here
+COINS = ["pepe-unchained","fartcoin", "kekius-maximus","dogecoin", "shiba-inu"]  # Add more meme coins here
 CURRENCY = "usd"
 RATE_LIMIT_DELAY = 60  # Delay in seconds to handle API rate limits
 
