@@ -2,6 +2,8 @@ import requests
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import time
 from flask import Flask, request
+import pandas as pd
+import os
 
 # === CONFIGURATION ===
 # CoinGecko and Yahoo Finance APIs
@@ -58,6 +60,25 @@ def fetch_coin_prices():
             prices[coin] = None
     return prices
 
+# Fetch Historical Prices (mocked data for RSI calculation)
+def fetch_historical_data(coin):
+    # Placeholder for real historical data fetching
+    return [100, 101, 99, 98, 100, 102, 103, 105, 107, 106, 104, 102, 101, 100]
+
+# Calculate RSI
+def calculate_rsi(prices, window=14):
+    prices_series = pd.Series(prices)
+    delta = prices_series.diff()
+    gain = delta.where(delta > 0, 0.0)
+    loss = -delta.where(delta < 0, 0.0)
+
+    avg_gain = gain.rolling(window=window, min_periods=1).mean()
+    avg_loss = loss.rolling(window=window, min_periods=1).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    return rsi.iloc[-1]  # Most recent RSI value
+
 # Fetch Top Posts from Reddit for Sentiment Analysis
 def fetch_reddit_posts(coin):
     query = coin.replace("-", " ")  # Adapt coin name for search
@@ -101,10 +122,14 @@ def handle_telegram():
 
         if text.startswith("/prices"):
             prices = fetch_coin_prices()
-            message = "\U0001F4B0 Current Prices:\n"
+            message = "\U0001F4B0 Current Prices and RSI:\n"
             for coin, price in prices.items():
                 if price is not None:
-                    message += f"- {coin.capitalize()}: ${price}\n"
+                    historical_prices = fetch_historical_data(coin)
+                    rsi = calculate_rsi(historical_prices)
+                    message += f"- {coin.capitalize()}:\n"
+                    message += f"  Price: ${price}\n"
+                    message += f"  RSI: {rsi:.2f}\n"
                 else:
                     message += f"- {coin.capitalize()}: Price unavailable or unsupported\n"
             send_telegram_message(message)
@@ -123,5 +148,5 @@ def handle_telegram():
 
 # Main Function
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001)
-    
+    port = int(os.environ.get("PORT", 5001))
+    app.run(host="0.0.0.0", port=port)
