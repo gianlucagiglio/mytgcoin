@@ -63,8 +63,19 @@ def fetch_coin_prices():
 
 # Fetch Historical Prices (mocked data for RSI calculation)
 def fetch_historical_data(coin):
-    # Placeholder for real historical data fetching
-    return [100, 101, 99, 98, 100, 102, 103, 105, 107, 106, 104, 102, 101, 100]
+    try:
+        response = requests.get(
+            f"https://api.coingecko.com/api/v3/coins/{coin}/market_chart",
+            params={"vs_currency": CURRENCY, "days": "14", "interval": "daily"},
+            timeout=10
+        )
+        response.raise_for_status()
+        prices = [point[1] for point in response.json().get("prices", [])]
+        return prices
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching historical data for {coin}: {e}")
+        return [100] * 14  # Default fallback
+
 
 # Calculate RSI
 def calculate_rsi(prices, window=14):
