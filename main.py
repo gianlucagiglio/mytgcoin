@@ -5,6 +5,7 @@ from flask import Flask, request
 import pandas as pd
 import os
 
+
 # === CONFIGURATION ===
 # CoinGecko and Yahoo Finance APIs
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
