@@ -19,7 +19,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     await update.message.reply_text(
         "Click a button to get the price or RSI for a coin:",
-        print ("message.reply_text ")
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
