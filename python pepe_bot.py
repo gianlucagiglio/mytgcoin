@@ -10,8 +10,8 @@ import time
 # Inserisci il token del bot di Telegram
 TELEGRAM_TOKEN = "7641508342:AAFMHZKoyselK1GX12-azOdjb6rMNeHeEWk"
 COIN_SYMBOL = "pepe-unchained"
-API_URL_PRICE = f"https://api.coingecko.com/api/v3/simple/price?ids={COIN_SYMBOL}&vs_currencies=usd"
-API_URL_MARKET = f"https://api.coingecko.com/api/v3/coins/{COIN_SYMBOL}/market_chart?vs_currency=usd&days=1"
+API_URL_PRICE = f"https://api.coingecko.com/api/v3/simple/price?ids=pepe-unchained&vs_currencies=usd"
+API_URL_MARKET = f"https://api.coingecko.com/api/v3/coins/pepe-unchained/market_chart?vs_currency=usd&days=1"
 
 # Variabili globali per prezzo e RSI
 latest_price = None
