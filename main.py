@@ -1,164 +1,48 @@
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
 import requests
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import time
-from flask import Flask, request
 import pandas as pd
-import os
+import ta
 
+# Inserisci il token del bot di Telegram
+TELEGRAM_TOKEN = "YOUR_TELEGRAM_TOKEN"
+COIN_SYMBOL = "pepe-unchained"
+API_URL = f"https://api.coingecko.com/api/v3/coins/{COIN_SYMBOL}/market_chart?vs_currency=usd&days=1"
 
-# === CONFIGURATION ===
-# CoinGecko and Yahoo Finance APIs
-COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
-COINS = ["pepe-unchained","fartcoin", "kekius-maximus","dogecoin", "shiba-inu"]  # Add more meme coins here
-CURRENCY = "usd"
-RATE_LIMIT_DELAY = 60  # Delay in seconds to handle API rate limits
+def get_price():
+    response = requests.get(f"https://api.coingecko.com/api/v3/simple/price?ids={COIN_SYMBOL}&vs_currencies=usd")
+    data = response.json()
+    return data[COIN_SYMBOL]["usd"]
 
-# Telegram Bot Configuration
-TELEGRAM_TOKEN = "7641508342:AAFMHZKoyselK1GX12-azOdjb6rMNeHeEWk"
-TELEGRAM_CHAT_ID = "19963832"
+def get_rsi():
+    response = requests.get(API_URL)
+    data = response.json()
+    prices = [x[1] for x in data["prices"]]  # Estrai i prezzi
+    df = pd.DataFrame(prices, columns=["close"])
+    rsi = ta.momentum.RSIIndicator(df["close"]).rsi()  # Calcola RSI
+    return round(rsi.iloc[-1], 2)
 
-# Reddit API (Optional for Sentiment Analysis)
-REDDIT_API_URL_TEMPLATE = "https://www.reddit.com/search.json?q={query}&sort=top&t=day"
-HEADERS = {"User-Agent": "CryptoStockTrendBot"}
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Welcome! Use /price to get the current price or /rsi to get the RSI of Pepe Unchained Coin.")
 
-# Initialize Sentiment Analyzer
-sentiment_analyzer = SentimentIntensityAnalyzer()
+def price(update: Update, context: CallbackContext) -> None:
+    price = get_price()
+    update.message.reply_text(f"The current price of Pepe Unchained Coin is ${price}")
 
-# Initialize Flask App
-app = Flask(__name__)
+def rsi(update: Update, context: CallbackContext) -> None:
+    rsi = get_rsi()
+    update.message.reply_text(f"The RSI of Pepe Unchained Coin is {rsi}")
 
-# === FUNCTIONS ===
-# Check if a coin is supported by CoinGecko
-def is_coin_supported(coin):
-    try:
-        response = requests.get(f"https://api.coingecko.com/api/v3/coins/list", timeout=10)
-        response.raise_for_status()
-        coins = response.json()
-        return any(c["id"] == coin for c in coins)
-    except requests.exceptions.RequestException as e:
-        print(f"Error checking support for {coin}: {e}")
-        return False
+def main():
+    updater = Updater(TELEGRAM_TOKEN)
+    dispatcher = updater.dispatcher
 
-# Fetch Coin Prices from CoinGecko with Rate Limiting
-def fetch_coin_prices():
-    prices = {}
-    for coin in COINS:
-        if not is_coin_supported(coin):
-            print(f"Coin not supported by CoinGecko: {coin}")
-            prices[coin] = None
-            continue
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("price", price))
+    dispatcher.add_handler(CommandHandler("rsi", rsi))
 
-        try:
-            response = requests.get(COINGECKO_URL, params={"ids": coin, "vs_currencies": CURRENCY}, timeout=10)
-            if response.status_code == 429:  # Rate limit exceeded
-                print("Rate limit hit. Waiting for cooldown...")
-                time.sleep(RATE_LIMIT_DELAY)
-                response = requests.get(COINGECKO_URL, params={"ids": coin, "vs_currencies": CURRENCY}, timeout=10)
-            response.raise_for_status()
-            prices[coin] = response.json().get(coin, {}).get(CURRENCY, None)
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching price for {coin}: {e}")
-            prices[coin] = None
-    return prices
+    updater.start_polling()
+    updater.idle()
 
-# Fetch Historical Prices (mocked data for RSI calculation)
-def fetch_historical_data(coin):
-    try:
-        response = requests.get(
-            f"https://api.coingecko.com/api/v3/coins/{coin}/market_chart",
-            params={"vs_currency": CURRENCY, "days": "14", "interval": "daily"},
-            timeout=10
-        )
-        response.raise_for_status()
-        prices = [point[1] for point in response.json().get("prices", [])]
-        return prices
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching historical data for {coin}: {e}")
-        return [100] * 14  # Default fallback
-
-
-# Calculate RSI
-def calculate_rsi(prices, window=14):
-    prices_series = pd.Series(prices)
-    delta = prices_series.diff()
-    gain = delta.where(delta > 0, 0.0)
-    loss = -delta.where(delta < 0, 0.0)
-
-    avg_gain = gain.rolling(window=window, min_periods=1).mean()
-    avg_loss = loss.rolling(window=window, min_periods=1).mean()
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-
-    return rsi.iloc[-1]  # Most recent RSI value
-
-# Fetch Top Posts from Reddit for Sentiment Analysis
-def fetch_reddit_posts(coin):
-    query = coin.replace("-", " ")  # Adapt coin name for search
-    try:
-        response = requests.get(REDDIT_API_URL_TEMPLATE.format(query=query), headers=HEADERS, timeout=10)
-        response.raise_for_status()
-        posts = response.json().get("data", {}).get("children", [])
-        return [post["data"].get("title", "") for post in posts]
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching Reddit posts for {coin}: {e}")
-        return []
-
-# Analyze Sentiment of Reddit Posts
-def analyze_sentiment(posts):
-    sentiment_scores = []
-    for post in posts:
-        score = sentiment_analyzer.polarity_scores(post)["compound"]
-        sentiment_scores.append(score)
-    return sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
-
-# Send Notification to Telegram using requests
-def send_telegram_message(message):
-    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message
-    }
-    try:
-        response = requests.post(telegram_url, json=payload, timeout=10)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send message: {e}")
-
-# Handle Telegram Bot Commands
-@app.route(f"/telegram/{TELEGRAM_TOKEN}", methods=["POST"])
-def handle_telegram():
-    data = request.json
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
-
-        if text.startswith("/prices"):
-            prices = fetch_coin_prices()
-            message = "\U0001F4B0 Current Prices and RSI:\n"
-            for coin, price in prices.items():
-                if price is not None:
-                    historical_prices = fetch_historical_data(coin)
-                    rsi = calculate_rsi(historical_prices)
-                    message += f"- {coin.capitalize()}:\n"
-                    message += f"  Price: ${price}\n"
-                    message += f"  RSI: {rsi:.2f}\n"
-                else:
-                    message += f"- {coin.capitalize()}: Price unavailable or unsupported\n"
-            send_telegram_message(message)
-
-        elif text.startswith("/sentiment"):
-            coin = text.split(" ", 1)[1].lower() if len(text.split(" ")) > 1 else None
-            if coin and is_coin_supported(coin):
-                reddit_posts = fetch_reddit_posts(coin)
-                sentiment_score = analyze_sentiment(reddit_posts)
-                message = f"\U0001F4AC Sentiment for {coin.capitalize()}: {sentiment_score:.2f}"
-            else:
-                message = "Coin not supported or invalid."
-            send_telegram_message(message)
-
-    return "OK"
-
-# Main Function
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port)
+    main()
