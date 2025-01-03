@@ -35,7 +35,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     data = query.data.split()
     if len(data) == 2 and data[0] == "info":
         coin = data[1]
-        message = await fetch_info(coin)
+        message = await asyncio.sleep(10) fetch_info(coin)
     else:
         message = "Invalid command."
 
