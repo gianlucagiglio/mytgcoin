@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
 import pandas as pd
@@ -15,13 +15,21 @@ CURRENCY = "usd"
 DEFAULT_COINS = ["pepe-unchained", "dogecoin", "shiba-inu", "bitcoin", "ethereum"]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Messaggio di benvenuto e istruzioni."""
-    coins = ", ".join(DEFAULT_COINS)
+    """Messaggio di benvenuto con collegamenti per ciascuna coin."""
+    # Creare pulsanti per ciascuna coin
+    buttons = [
+        [
+            InlineKeyboardButton(f"{coin.capitalize()} Price", callback_data=f"price {coin}"),
+            InlineKeyboardButton(f"{coin.capitalize()} RSI", callback_data=f"rsi {coin}")
+        ]
+        for coin in DEFAULT_COINS
+    ]
+
+    # Messaggio iniziale
     await update.message.reply_text(
-        f"Welcome! Use /price or /rsi followed by a coin name to get data.\n"
-        f"Example: /price pepe-unchained or /rsi bitcoin.\n"
-        f"Available coins: {coins}.\n"
-        f"Or type /price or /rsi alone to see data for all available coins."
+        "Welcome! Use the buttons below to get the price or RSI for each default coin.\n"
+        "You can also type /price <coin> or /rsi <coin> manually.",
+        reply_markup=InlineKeyboardMarkup(buttons)
     )
 
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -76,6 +84,21 @@ async def fetch_rsi(coin: str) -> str:
         print(f"Error fetching RSI for {coin}: {e}")
         return None
 
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Gestisce i pulsanti cliccati."""
+    query = update.callback_query
+    await query.answer()
+
+    command, coin = query.data.split()
+    if command == "price":
+        price = await fetch_price(coin)
+        message = f"{coin.capitalize()} Price: ${price}\n" if price else f"Coin '{coin}' not found or price unavailable."
+    elif command == "rsi":
+        rsi = await fetch_rsi(coin)
+        message = f"{coin.capitalize()} RSI: {rsi}\n" if rsi else f"Coin '{coin}' not found or RSI unavailable."
+    
+    await query.edit_message_text(message)
+
 def main():
     """Avvia il bot."""
     application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -83,6 +106,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("price", price))
     application.add_handler(CommandHandler("rsi", rsi))
+    application.add_handler(CommandHandler("callback", handle_callback))
 
     application.run_webhook(
         listen="0.0.0.0",
