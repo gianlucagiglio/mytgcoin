@@ -6,7 +6,7 @@ import ta
 import asyncio
 
 # Inserisci il token del bot di Telegram
-TELEGRAM_TOKEN = "7641508342:AAFMHZKoyselK1GX12-azOdjb6rMNeHeEWk"
+TELEGRAM_TOKEN = "YOUR_TELEGRAM_TOKEN"
 COIN_SYMBOL = "pepe-unchained"
 API_URL_PRICE = f"https://api.coingecko.com/api/v3/simple/price?ids={COIN_SYMBOL}&vs_currencies=usd"
 API_URL_MARKET = f"https://api.coingecko.com/api/v3/coins/{COIN_SYMBOL}/market_chart?vs_currency=usd&days=1"
@@ -51,7 +51,7 @@ async def rsi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         await update.message.reply_text("RSI data is not available at the moment. Please try again later.")
 
-def main():
+async def main():
     # Crea l'applicazione del bot
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
@@ -60,11 +60,11 @@ def main():
     application.add_handler(CommandHandler("price", price))
     application.add_handler(CommandHandler("rsi", rsi))
 
-    # Esegui il fetch dei dati in un task separato
+    # Avvia il fetch dei dati come task separata
     asyncio.create_task(fetch_data())
 
     # Avvia il bot
-    application.run_polling()
+    await application.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
