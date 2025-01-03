@@ -1,23 +1,21 @@
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
 import pandas as pd
 import ta
-import threading
-import time
-
+import asyncio
 
 # Inserisci il token del bot di Telegram
-TELEGRAM_TOKEN = "7641508342:AAFMHZKoyselK1GX12-azOdjb6rMNeHeEWk"
+TELEGRAM_TOKEN = "YOUR_TELEGRAM_TOKEN"
 COIN_SYMBOL = "pepe-unchained"
-API_URL_PRICE = f"https://api.coingecko.com/api/v3/simple/price?ids=pepe-unchained&vs_currencies=usd"
-API_URL_MARKET = f"https://api.coingecko.com/api/v3/coins/pepe-unchained/market_chart?vs_currency=usd&days=1"
+API_URL_PRICE = f"https://api.coingecko.com/api/v3/simple/price?ids={COIN_SYMBOL}&vs_currencies=usd"
+API_URL_MARKET = f"https://api.coingecko.com/api/v3/coins/{COIN_SYMBOL}/market_chart?vs_currency=usd&days=1"
 
 # Variabili globali per prezzo e RSI
 latest_price = None
 latest_rsi = None
 
-def fetch_data():
+async def fetch_data():
     global latest_price, latest_rsi
     while True:
         try:
@@ -36,37 +34,37 @@ def fetch_data():
             print(f"Error fetching data: {e}")
 
         # Attendi 60 secondi prima di aggiornare di nuovo
-        time.sleep(60)
+        await asyncio.sleep(60)
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Welcome! Use /price to get the current price or /rsi to get the RSI of Pepe Unchained Coin.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Welcome! Use /price to get the current price or /rsi to get the RSI of Pepe Unchained Coin.")
 
-def price(update: Update, context: CallbackContext) -> None:
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if latest_price is not None:
-        update.message.reply_text(f"The current price of Pepe Unchained Coin is ${latest_price}")
+        await update.message.reply_text(f"The current price of Pepe Unchained Coin is ${latest_price}")
     else:
-        update.message.reply_text("Price data is not available at the moment. Please try again later.")
+        await update.message.reply_text("Price data is not available at the moment. Please try again later.")
 
-def rsi(update: Update, context: CallbackContext) -> None:
+async def rsi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if latest_rsi is not None:
-        update.message.reply_text(f"The RSI of Pepe Unchained Coin is {latest_rsi}")
+        await update.message.reply_text(f"The RSI of Pepe Unchained Coin is {latest_rsi}")
     else:
-        update.message.reply_text("RSI data is not available at the moment. Please try again later.")
+        await update.message.reply_text("RSI data is not available at the moment. Please try again later.")
 
 def main():
-    updater = Updater(TELEGRAM_TOKEN)
-    dispatcher = updater.dispatcher
+    # Crea l'applicazione del bot
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("price", price))
-    dispatcher.add_handler(CommandHandler("rsi", rsi))
+    # Aggiungi i gestori dei comandi
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("price", price))
+    application.add_handler(CommandHandler("rsi", rsi))
 
-    # Thread separato per aggiornare i dati periodicamente
-    data_thread = threading.Thread(target=fetch_data, daemon=True)
-    data_thread.start()
+    # Esegui il fetch dei dati in un task separato
+    asyncio.create_task(fetch_data())
 
-    updater.start_polling()
-    updater.idle()
+    # Avvia il bot
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
