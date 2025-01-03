@@ -33,10 +33,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     # Estrae il comando "info" e la coin
     data = query.data.split()
-    command = data[0]
-    coin = data[1] if len(data) > 1 else None
-
-    if command == "info" and coin:
+    if len(data) == 2 and data[0] == "info":
+        coin = data[1]
         message = await fetch_info(coin)
     else:
         message = "Invalid command."
