@@ -1,3 +1,4 @@
+import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import requests
@@ -13,18 +14,21 @@ DEFAULT_COINS = ["pepe-unchained", "dogecoin", "shiba-inu", "bitcoin", "ethereum
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Messaggio di benvenuto con pulsanti per coin."""
-    # Creazione pulsanti per coin
+    # Creazione pulsanti per coin e comandi globali
     buttons = [
-        [
-            InlineKeyboardButton(f"{coin.capitalize()} Price", callback_data=f"price {coin}"),
-            InlineKeyboardButton(f"{coin.capitalize()} RSI", callback_data=f"rsi {coin}")
-        ]
+        [InlineKeyboardButton(f"{coin.capitalize()} Price", callback_data=f"price {coin}"),
+         InlineKeyboardButton(f"{coin.capitalize()} RSI", callback_data=f"rsi {coin}")]
         for coin in DEFAULT_COINS
     ]
+    # Aggiungi i pulsanti per tutte le coin
+    buttons.append([
+        InlineKeyboardButton("All Prices", callback_data="all_prices"),
+        InlineKeyboardButton("All RSI", callback_data="all_rsi")
+    ])
 
     # Messaggio iniziale con pulsanti
     await update.message.reply_text(
-        "Click a button to get the price or RSI for a specific coin:",
+        "Click a button to get the price or RSI for a specific coin, or get data for all coins:",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -33,14 +37,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
 
-    # Estrae il comando (price o rsi) e la coin
-    command, coin = query.data.split()
-    if command == "price":
+    # Estrae il comando (price, rsi, all_prices, all_rsi)
+    data = query.data.split()
+    command = data[0]
+    coin = data[1] if len(data) > 1 else None
+
+    if command == "price" and coin:
         price = await fetch_price(coin)
         message = f"{coin.capitalize()} Price: ${price}" if price else f"Could not fetch price for {coin}."
-    elif command == "rsi":
+    elif command == "rsi" and coin:
         rsi = await fetch_rsi(coin)
         message = f"{coin.capitalize()} RSI: {rsi}" if rsi else f"Could not fetch RSI for {coin}."
+    elif command == "all_prices":
+        message = await fetch_all_prices()
+    elif command == "all_rsi":
+        message = await fetch_all_rsi()
+    else:
+        message = "Invalid command."
 
     # Modifica il messaggio con il risultato
     await query.edit_message_text(message)
@@ -75,6 +88,24 @@ async def fetch_rsi(coin: str) -> str:
         print(f"Error fetching RSI for {coin}: {e}")
         return None
 
+async def fetch_all_prices() -> str:
+    """Recupera i prezzi di tutte le coin con ritardo tra le richieste."""
+    message = "Prices for all coins:\n"
+    for coin in DEFAULT_COINS:
+        price = await fetch_price(coin)
+        message += f"{coin.capitalize()}: ${price}\n" if price else f"{coin.capitalize()}: Price unavailable\n"
+        await asyncio.sleep(1)  # Ritardo di 1 secondo per rispettare i limiti API
+    return message
+
+async def fetch_all_rsi() -> str:
+    """Recupera l'RSI di tutte le coin con ritardo tra le richieste."""
+    message = "RSI for all coins:\n"
+    for coin in DEFAULT_COINS:
+        rsi = await fetch_rsi(coin)
+        message += f"{coin.capitalize()}: RSI {rsi}\n" if rsi else f"{coin.capitalize()}: RSI unavailable\n"
+        await asyncio.sleep(1)  # Ritardo di 1 secondo per rispettare i limiti API
+    return message
+
 def main():
     """Avvia il bot."""
     application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -93,4 +124,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
