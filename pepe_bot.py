@@ -19,6 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     await update.message.reply_text(
         "Click a button to get the price or RSI for a coin:",
+        print ("message.reply_text ")
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -30,9 +31,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     command, coin = query.data.split()
     if command == "price":
         price = await fetch_price(coin)
+        print ("clicked price of ", coin)
         message = f"{coin.capitalize()} Price: ${price}\n" if price else f"Could not fetch price for {coin}."
     elif command == "rsi":
         rsi = await fetch_rsi(coin)
+        print ("clicked rsi of ", coin)
         message = f"{coin.capitalize()} RSI: {rsi}\n" if rsi else f"Could not fetch RSI for {coin}."
 
     await query.edit_message_text(message)
@@ -42,6 +45,7 @@ async def fetch_price(coin: str) -> str:
     try:
         response = requests.get(API_URL_PRICE, params={"ids": coin, "vs_currencies": CURRENCY}, timeout=10)
         response.raise_for_status()
+        print ("result price of ", coin)
         return response.json().get(coin, {}).get(CURRENCY)
     except Exception as e:
         print(f"Error fetching price for {coin}: {e}")
