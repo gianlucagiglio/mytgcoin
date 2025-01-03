@@ -68,6 +68,25 @@ async def fetch_price(coin: str) -> str:
         print(f"Error fetching price for {coin}: {e}")
         return None
 
+async def fetch_all_prices() -> str:
+    """Recupera i prezzi di tutte le coin in un'unica richiesta."""
+    try:
+        response = requests.get(
+            API_URL_PRICE, 
+            params={"ids": ",".join(DEFAULT_COINS), "vs_currencies": CURRENCY}, 
+            timeout=10
+        )
+        response.raise_for_status()
+        data = response.json()
+        message = "Prices for all coins:\n"
+        for coin in DEFAULT_COINS:
+            price = data.get(coin, {}).get(CURRENCY)
+            message += f"{coin.capitalize()}: ${price}\n" if price else f"{coin.capitalize()}: Price unavailable\n"
+        return message
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching all prices: {e}")
+        return "Could not fetch prices for all coins."
+
 async def fetch_rsi(coin: str) -> str:
     """Calcola l'RSI per una coin."""
     try:
@@ -88,23 +107,13 @@ async def fetch_rsi(coin: str) -> str:
         print(f"Error fetching RSI for {coin}: {e}")
         return None
 
-async def fetch_all_prices() -> str:
-    """Recupera i prezzi di tutte le coin con ritardo tra le richieste."""
-    message = "Prices for all coins:\n"
-    for coin in DEFAULT_COINS:
-        price = await fetch_price(coin)
-        message += f"{coin.capitalize()}: ${price}\n" if price else f"{coin.capitalize()}: Price unavailable\n"
-        await asyncio.sleep(5)  # Ritardo di 1 secondo per rispettare i limiti API
-        
-    return message
-
 async def fetch_all_rsi() -> str:
-    """Recupera l'RSI di tutte le coin con ritardo tra le richieste."""
+    """Recupera l'RSI di tutte le coin con un ritardo maggiore."""
     message = "RSI for all coins:\n"
     for coin in DEFAULT_COINS:
         rsi = await fetch_rsi(coin)
         message += f"{coin.capitalize()}: RSI {rsi}\n" if rsi else f"{coin.capitalize()}: RSI unavailable\n"
-        await asyncio.sleep(1)  # Ritardo di 1 secondo per rispettare i limiti API
+        await asyncio.sleep(2)  # Ritardo di 2 secondi per rispettare i limiti API
     return message
 
 def main():
