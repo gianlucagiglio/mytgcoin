@@ -94,7 +94,8 @@ async def fetch_all_prices() -> str:
     for coin in DEFAULT_COINS:
         price = await fetch_price(coin)
         message += f"{coin.capitalize()}: ${price}\n" if price else f"{coin.capitalize()}: Price unavailable\n"
-        await asyncio.sleep(1)  # Ritardo di 1 secondo per rispettare i limiti API
+        await asyncio.sleep(5)  # Ritardo di 1 secondo per rispettare i limiti API
+        
     return message
 
 async def fetch_all_rsi() -> str:
