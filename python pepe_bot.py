@@ -6,6 +6,7 @@ import ta
 import threading
 import time
 
+
 # Inserisci il token del bot di Telegram
 TELEGRAM_TOKEN = "7641508342:AAFMHZKoyselK1GX12-azOdjb6rMNeHeEWk"
 COIN_SYMBOL = "pepe-unchained"
