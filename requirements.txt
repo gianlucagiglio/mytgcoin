@@ -2,3 +2,4 @@ python-telegram-bot[job-queue]==20.3
 requests==2.31.0
 pandas==2.1.2
 ta==0.10.2
+vaderSentiment==3.3.2
